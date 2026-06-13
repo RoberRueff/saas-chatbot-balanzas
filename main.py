@@ -4,6 +4,7 @@ import traceback
 from contextlib import asynccontextmanager
 from enum import Enum
 from typing import Optional
+from xml.sax.saxutils import escape as xml_escape
 
 from google import genai
 from google.genai import types as genai_types
@@ -22,7 +23,8 @@ load_dotenv()
 async def lifespan(_app: FastAPI):
     global gemini_client
     init_db()
-    gemini_client = genai.Client()
+    if _ia_configurada():
+        gemini_client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
     yield
 
 
@@ -129,7 +131,7 @@ def _llamar_gemini(historial: list[dict], texto: str) -> RespuestaChatbot:
     ))
 
     response = gemini_client.models.generate_content(
-        model="gemini-2.0-flash",
+        model="gemini-2.5-flash",
         contents=contents,
         config=genai_types.GenerateContentConfig(
             system_instruction=SYSTEM_PROMPT,
@@ -146,15 +148,21 @@ def _llamar_gemini(historial: list[dict], texto: str) -> RespuestaChatbot:
 # Lógica compartida
 # ---------------------------------------------------------------------------
 
+MAX_HISTORIAL_MENSAJES = 30  # ventana de contexto para acotar tokens/latencia
+
+
 def _procesar_mensaje(db: Session, telefono: str, texto: str) -> tuple[int, RespuestaChatbot]:
     conversacion = obtener_o_crear_conversacion(db, telefono)
-    historial = [
-        {"role": msg.rol, "content": msg.contenido}
-        for msg in conversacion.mensajes
-    ]
-    guardar_mensaje(db, conversacion.id, "user", texto)
+    mensajes = conversacion.mensajes[-MAX_HISTORIAL_MENSAJES:]
+    # Gemini exige que el historial arranque con un turno de usuario.
+    while mensajes and mensajes[0].rol != "user":
+        mensajes = mensajes[1:]
+    historial = [{"role": msg.rol, "content": msg.contenido} for msg in mensajes]
+    # Llamamos a Gemini ANTES de persistir: si falla, no dejamos un turno "user"
+    # huérfano que ensucie el historial (dos turnos de usuario seguidos) en el próximo mensaje.
     resultado = _llamar_gemini(historial, texto)
     nota_json = resultado.model_dump_json(exclude={"respuesta_al_cliente"}, exclude_none=False)
+    guardar_mensaje(db, conversacion.id, "user", texto)
     guardar_mensaje(db, conversacion.id, "assistant", resultado.respuesta_al_cliente, nota_json)
     return conversacion.id, resultado
 
@@ -165,11 +173,11 @@ def _procesar_mensaje(db: Session, telefono: str, texto: str) -> tuple[int, Resp
 
 @app.get("/")
 def root():
-    return {"status": "ok", "servicio": "Chatbot Balanzas", "ia": "gemini-2.0-flash"}
+    return {"status": "ok", "servicio": "Chatbot Balanzas", "ia": "gemini-2.5-flash"}
 
 
 @app.post("/chat", response_model=RespuestaChat)
-async def chat(entrada: MensajeEntrada, db: Session = Depends(get_db)):
+def chat(entrada: MensajeEntrada, db: Session = Depends(get_db)):
     if not _ia_configurada():
         raise HTTPException(status_code=500, detail="GEMINI_API_KEY no configurada")
     try:
@@ -189,7 +197,7 @@ async def chat(entrada: MensajeEntrada, db: Session = Depends(get_db)):
 
 
 @app.post("/whatsapp")
-async def whatsapp_webhook(
+def whatsapp_webhook(
     From: str = Form(...),
     Body: str = Form(...),
     db: Session = Depends(get_db),
@@ -215,5 +223,5 @@ async def whatsapp_webhook(
         print("="*60 + "\n")
         respuesta_texto = "Hubo un problema procesando tu mensaje. Por favor intentá de nuevo en unos minutos."
 
-    twiml = f"<Response><Message>{respuesta_texto}</Message></Response>"
+    twiml = f"<Response><Message>{xml_escape(respuesta_texto)}</Message></Response>"
     return Response(content=twiml, media_type="application/xml")

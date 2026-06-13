@@ -31,7 +31,7 @@ class Conversacion(Base):
     )
 
     mensajes: Mapped[list["HistorialMensaje"]] = relationship(
-        "HistorialMensaje", back_populates="conversacion", order_by="HistorialMensaje.fecha"
+        "HistorialMensaje", back_populates="conversacion", order_by="HistorialMensaje.id"
     )
 
 
