@@ -61,5 +61,11 @@ Configurá la URL HTTPS de Ngrok en el **Sandbox de Twilio** como webhook del `/
 ## Subir cambios a GitHub
 
 ```powershell
-.\subir-cambios.ps1 "descripcion de los cambios"
+# Windows
+.\subir-cambios-windows.ps1 "descripcion de los cambios"
+```
+
+```bash
+# Mac / Linux
+./subir-cambios-mac.sh "descripcion de los cambios"
 ```

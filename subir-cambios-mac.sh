@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # ============================================================
-# subir-cambios.sh  (version Mac/Linux de subir-cambios.ps1)
+# subir-cambios-mac.sh  (version Mac/Linux de subir-cambios-windows.ps1)
 # Sube las modificaciones del proyecto a GitHub.
-# Uso:   ./subir-cambios.sh "descripcion de los cambios"
-#   o    ./subir-cambios.sh           (te pregunta la descripcion)
+# Uso:   ./subir-cambios-mac.sh "descripcion de los cambios"
+#   o    ./subir-cambios-mac.sh           (te pregunta la descripcion)
 # ============================================================
 
 # Ubicarse en la carpeta del proyecto (donde esta este script)

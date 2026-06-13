@@ -1,7 +1,7 @@
 # ============================================================
-# subir-cambios.ps1
-# Sube las modificaciones del proyecto a GitHub
-# Uso: .\subir-cambios.ps1 "descripcion de los cambios"
+# subir-cambios-windows.ps1
+# Sube las modificaciones del proyecto a GitHub (Windows / PowerShell)
+# Uso: .\subir-cambios-windows.ps1 "descripcion de los cambios"
 # ============================================================
 
 param(
